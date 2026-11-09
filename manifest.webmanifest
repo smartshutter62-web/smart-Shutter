@@ -1,0 +1,19 @@
+{
+  "id": "./",
+  "name": "برنامج تسعير شيش الحصيرة",
+  "short_name": "تسعير الشيش",
+  "description": "تسعير وإنشاء عروض أسعار شيش الحصيرة الفوم، يعمل بدون إنترنت",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f9",
+  "theme_color": "#2f5d8a",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
