@@ -1,20 +1,28 @@
-// غيّر رقم الإصدار عند أي تعديل على الملفات ليتحدث التطبيق عند المستخدمين
-const V = 'shutter-pwa-v2';
-const FILES = ['./', 'index.html', 'manifest.webmanifest', 'html2canvas.min.js',
-  'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'];
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(V).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+// Smart Shutter mobile repair. Only this app's cache is managed.
+const V = 'shutter-pwa-v3-mobile-20261123';
+const FILES = ['./', './index.html', './manifest.webmanifest', './html2canvas.min.js',
+  './icon-192.png', './icon-512.png', './icon-maskable-512.png', './mobile.js', './mobile.css'];
+self.addEventListener('install', event => {
+  event.waitUntil(caches.open(V).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k))))
-    .then(() => self.clients.claim()));
+self.addEventListener('activate', event => {
+  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('shutter-pwa-') && key !== V).map(key => caches.delete(key)))).then(() => self.clients.claim()));
 });
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request, {ignoreSearch: true}).then(hit => hit || fetch(e.request).then(r => {
-    if (r.ok && new URL(e.request.url).origin === location.origin) {
-      const copy = r.clone(); caches.open(V).then(c => c.put(e.request, copy));
+self.addEventListener('fetch', event => {
+  const url = new URL(event.request.url);
+  if (event.request.method !== 'GET' || url.origin !== self.location.origin || !url.pathname.startsWith(new URL('./', self.location).pathname)) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(V);
+    // Online-first document loads allow deployed repairs to reach existing users.
+    if (event.request.mode === 'navigate') {
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) { await cache.put('./index.html', response.clone()); return response; }
+        return await cache.match('./index.html') || response;
+      } catch (_) { return await cache.match('./index.html') || Response.error(); }
     }
-    return r;
-  }).catch(() => e.request.mode === 'navigate' ? caches.match('index.html') : undefined)));
+    const hit = await cache.match(event.request, {ignoreSearch: true});
+    if (hit) return hit;
+    return fetch(event.request);
+  })());
 });
