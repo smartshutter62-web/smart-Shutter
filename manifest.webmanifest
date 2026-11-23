@@ -1,15 +1,15 @@
 {
   "id": "./",
-  "name": "برنامج تسعير شيش الحصيرة",
-  "short_name": "تسعير الشيش",
+  "name": "Smart Shutter | عروض الأسعار",
+  "short_name": "Smart Shutter",
   "description": "تسعير وإنشاء عروض أسعار شيش الحصيرة الفوم، يعمل بدون إنترنت",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f4f6f9",
-  "theme_color": "#2f5d8a",
+  "background_color": "#f3f6f7",
+  "theme_color": "#006779",
   "categories": [
     "business",
     "productivity"
