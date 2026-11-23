@@ -14,3 +14,5 @@ html,body{background:#f3f6f7;color:#14313a;color-scheme:only light!important}hea
 /* Employee interface gate. Not server authorization or encryption. */
 .employee-mode nav{display:flex;justify-content:center}.employee-mode nav>div{width:100%}.mode-button{font-size:12px!important;padding:7px 10px!important;min-height:44px;white-space:normal;max-width:90px}header{flex-wrap:wrap}.employee-mode .local-note span{font-size:12px}
 .workflow-tools #export-sale,.workflow-tools #owner-lock{display:block;margin:12px 0 20px;width:100%}.workflow-tools label{display:block;clear:both}.workflow-dialog button{margin-top:12px}.workflow-dialog input{display:block;width:100%}
+
+.workflow-tools input[type=file]{display:block;width:100%;margin:8px 0 14px;background:#fbfcfd;border:1px dashed #cfdee3;border-radius:11px;padding:11px 12px;font-size:12px}
