@@ -102,5 +102,91 @@ if(!Q&&(tab==='s'||tab==='b')){const card=document.createElement('section');card
 
 if(!Q&&tab==='b'){const card=document.createElement('section');card.className='card workflow-tools';card.innerHTML='<h3>نسخة كاملة للمشاركة أو Drive</h3><p class="m">تشمل العروض والأسعار والحالات ومواعيد المتابعة وإعداد القفل. احتفظ بالملف في مكان آمن. القفل مش بيشفّر النسخة.</p><button id="share-backup">مشاركة نسخة كاملة</button><p class="m">اختار Drive من قائمة المشاركة لو متاح، أو احفظ الملف وارفعه بنفسك. مفيش رفع أوتوماتيك أو مزامنة بين الأجهزة.</p><label>استعادة نسخة كاملة</label><input id="restore-full" type="file" accept=".json"><p class="m">نسخ البرنامج القديمة تفضل شغالة من قسم الاستعادة الأصلي.</p>';main.append(card);card.querySelector('#share-backup').onclick=async()=>{const payload={format:'smart-shutter-full-v1',data:S,workflow:extra},blob=new Blob([JSON.stringify(payload)],{type:'application/json'}),file=new File([blob],'smart_shutter_full_'+today()+'.json',{type:'application/json'});try{if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'نسخة Smart Shutter'});toast('تم فتح المشاركة. اتأكد إن الملف اتحفظ.')}else await A.dl(file.name,blob);extra.lastBackup=Date.now();persist()}catch(e){if(e.name!=='AbortError')toast('تعذرت المشاركة. استخدم إنشاء نسخة احتياطية.',1)}};card.querySelector('#restore-full').onchange=async e=>{try{const f=e.target.files[0];if(!f)return;const x=JSON.parse(await f.text());if(x.format!=='smart-shutter-full-v1'||!Array.isArray(x.data?.quotes)||!Array.isArray(x.data?.slats)||!x.workflow||typeof x.workflow.quotes!=='object')throw Error();if(!confirm('استبدال البيانات والحالات وإعداد الخصوصية بالنسخة المختارة؟'))return;const before=JSON.stringify(S);localStorage.setItem(K+'_recovery_v1',JSON.stringify({at:Date.now(),data:before}));S=Object.assign(def(),x.data);fixSl();extra={quotes:{},pin:null,lastBackup:0,...x.workflow};if(extra.pin&&(!/^[a-f0-9]{32}$/.test(extra.pin.salt)||!/^[a-f0-9]{64}$/.test(extra.pin.hash)))extra.pin=null;unlocked=false;persist();save();originalTab('q');toast('تمت استعادة النسخة الكاملة')}catch(_){toast('الملف مش نسخة كاملة صالحة.',1)}}}
 };
+
+// ---- v8: payments + customer statement (owner only), measurements form + photos ----
+const mny=x=>f0(x||0);
+const paidOf=id=>(meta(id).payments||[]).reduce((a,p)=>a+(num(p.amt)||0),0);
+const cname=q=>String(q.cust||'').trim();
+const quotesOf=name=>S.quotes.filter(q=>cname(q)===name);
+const defIds=name=>quotesOf(name).filter(q=>['accepted','paid'].includes(meta(q.id).status)||(meta(q.id).payments||[]).length).map(q=>q.id);
+let ST=null,stSel=null;
+const stHtml=(name,ids)=>{
+  const list=quotesOf(name).filter(q=>ids.includes(q.id));let tot=0,pd=0;
+  const rows=list.map(q=>{const t=totals(q).grand,p=paidOf(q.id);tot+=t;pd+=p;return '<tr><td>'+esc(q.no)+'</td><td>'+esc(q.proj)+'</td><td>'+esc(q.date)+'</td><td>'+mny(t)+'</td><td>'+mny(p)+'</td><td><b>'+mny(t-p)+'</b></td></tr>'}).join('')||'<tr><td colspan="6">لا توجد عروض مختارة</td></tr>';
+  const pays=[];list.forEach(q=>(meta(q.id).payments||[]).forEach(p=>pays.push({...p,no:q.no})));pays.sort((a,b)=>String(a.d).localeCompare(String(b.d)));
+  const prow=pays.map(p=>'<tr><td>'+esc(p.d)+'</td><td>'+esc(p.no)+'</td><td>'+esc(p.note||'')+'</td><td><b>'+mny(num(p.amt))+'</b></td></tr>').join('')||'<tr><td colspan="4">لا توجد دفعات مسجلة</td></tr>';
+  const phone=(list.find(q=>q.phone)||{}).phone||'';
+  const logo=S.logo==='none'?'':'<img src="'+(S.logo||LOGO)+'" style="height:72px">';
+  return '<div class="pg ar" style="min-height:0"><table style="margin-bottom:6px"><tr><td style="border:0;text-align:right;vertical-align:top;font-size:14px;line-height:1.7">العميل: <b>'+esc(name)+'</b><br>'+(phone?'هاتف العميل: <bdi>'+esc(phone)+'</bdi><br>':'')+'التاريخ: <bdi>'+today().split('-').reverse().join('/')+'</bdi>'+(S.phone?'<br>للتواصل: <bdi>'+esc(S.phone)+'</bdi>':'')+'</td><td style="border:0;text-align:left;vertical-align:top">'+logo+'</td></tr></table><h2>كشف حساب عميل</h2>'
+   +'<table><tr><th>رقم العرض</th><th>المشروع</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr>'+rows+'<tr><td colspan="3"><b>الإجمالي</b></td><td><b>'+mny(tot)+'</b></td><td><b>'+mny(pd)+'</b></td><td><b>'+mny(tot-pd)+'</b></td></tr></table>'
+   +'<h2 style="margin-top:22px">سجل الدفعات</h2><table><tr><th>التاريخ</th><th>عرض رقم</th><th>البيان</th><th>المبلغ</th></tr>'+prow+'</table>'
+   +'<table style="width:340px;margin:22px auto 0"><tr><td>إجمالي المستحق</td><td><b>'+mny(tot)+'</b></td></tr><tr><td>إجمالي المدفوع</td><td><b>'+mny(pd)+'</b></td></tr><tr><td>المتبقي</td><td><b>'+mny(tot-pd)+'</b></td></tr></table></div>';
+};
+const stPdf=async share=>{toast('جاري تجهيز ملف PDF...');try{await loadH2C();const host=document.createElement('div');host.className='q';host.style.cssText='position:fixed;left:-12000px;top:0;width:1123px';host.innerHTML=$('#cq').innerHTML;document.body.appendChild(host);
+  const list=[];for(const el of host.querySelectorAll('.pg')){const cv=await html2canvas(el,{scale:2,backgroundColor:'#fff'}),t0=el.getBoundingClientRect().top;list.push({cv,bots:[...el.querySelectorAll('tr,.tl,h2')].map(e=>(e.getBoundingClientRect().bottom-t0)*2)})}host.remove();
+  const blob=pdfFrom(list),name='كشف_حساب_'+ST.replace(/[\\/:*?"<>|]/g,'')+'.pdf';
+  if(share&&navigator.canShare){const f=new File([blob],name,{type:'application/pdf'});if(navigator.canShare({files:[f]})){await navigator.share({files:[f],title:name});return}}
+  if(await A.dl(name,blob))toast('✔ تم تجهيز ملف PDF');else toast('تعذر حفظ الملف على هذا الجهاز. جرّب زر المشاركة.',1)}catch(e){document.querySelectorAll('body>div.q').forEach(x=>x.remove());if(e&&e.name==='AbortError')return;toast((e&&e.message)||'تعذر إنشاء PDF',1)}};
+const stView=()=>{
+  const all=quotesOf(ST);if(!stSel)stSel=defIds(ST);
+  $('#app').innerHTML='<div class="ov" dir="rtl"><button class="s" id="st-back">رجوع</button><button id="st-pdf">📄 حفظ PDF</button><button id="st-share">📤 مشاركة PDF</button><div class="card"><h3>العروض اللي داخلة في الكشف</h3><p class="m">اختار العروض اللي تظهر للعميل. المختار تلقائياً: العروض المقبولة أو اللي عليها دفعات.</p>'+all.map(q=>'<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" style="width:auto;margin:0" data-id="'+q.id+'" '+(stSel.includes(q.id)?'checked':'')+'><span>'+esc(q.no)+' · '+esc(q.proj)+' · '+mny(totals(q).grand)+' · '+(statusNames[meta(q.id).status]||'')+'</span></label>').join('')+'</div><div id="cq" class="q" style="width:1123px">'+stHtml(ST,stSel)+'</div></div>';
+  $('#cq').style.zoom=Math.min(1,(innerWidth-24)/1123);
+  $('#st-back').onclick=()=>{ST=null;stSel=null;draw()};$('#st-pdf').onclick=()=>stPdf(false);$('#st-share').onclick=()=>stPdf(true);
+  document.querySelectorAll('.ov input[type=checkbox]').forEach(c=>c.onchange=()=>{const id=Number(c.dataset.id);stSel=c.checked?[...new Set([...stSel,id])]:stSel.filter(x=>x!==id);draw()});
+};
+// photos
+const photoBytes=()=>{try{return(localStorage.getItem(FK)||'').length}catch(_){return 0}};
+const shrink=file=>new Promise((ok,no)=>{const r=new FileReader();r.onerror=no;r.onload=()=>{const i=new Image();i.onerror=no;i.onload=()=>{const k=Math.min(1,900/Math.max(i.width,i.height)),c=document.createElement('canvas');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);c.getContext('2d').drawImage(i,0,0,c.width,c.height);ok(c.toDataURL('image/jpeg',.6))};i.src=r.result};r.readAsDataURL(file)});
+const photoDlg=document.createElement('dialog');photoDlg.className='workflow-dialog';photoDlg.dir='rtl';document.body.append(photoDlg);
+// bulk measurements form
+const bulkDlg=document.createElement('dialog');bulkDlg.className='workflow-dialog';bulkDlg.dir='rtl';bulkDlg.style.cssText='width:94vw;max-width:520px;max-height:90vh;overflow:auto';document.body.append(bulkDlg);
+let bulk=null;
+const renderBulk=err=>{
+  const o=(a,v)=>a.map(([x,t])=>'<option value="'+esc(x)+'" '+(String(v)===String(x)?'selected':'')+'>'+esc(t)+'</option>').join('');
+  bulkDlg.innerHTML='<h3>فورم المقاسات</h3><p class="m">اكتب كل الفتحات مرة واحدة (بالسنتيمتر). النوع واللون والماسورة واحد للكل، والموتور أو اليدوي لكل فتحة. بعد الإضافة راجع الشبابيك واحفظ العرض.</p>'
+   +'<label>نوع الريشة</label><select id="b-slat">'+o(S.slats.map(s=>[s.id,s.ar]),bulk.slat)+'</select><label>اللون</label><select id="b-col">'+o(S.colors.map(c=>[c.n,c.n]),bulk.col)+'</select><label>قطر الماسورة</label><select id="b-tube">'+o([[6,'6 سم'],[7,'7 سم'],[9,'9 سم']],bulk.tube)+'</select>'
+   +'<div style="display:grid;grid-template-columns:1fr 1fr .7fr 1fr;gap:6px;font-size:12px;margin-top:10px"><b>العرض</b><b>الارتفاع</b><b>العدد</b><b>الماكينة</b></div>'
+   +bulk.rows.map((r,i)=>'<div style="display:grid;grid-template-columns:1fr 1fr .7fr 1fr;gap:6px"><input inputmode="decimal" data-i="'+i+'" data-k="w" value="'+esc(r.w)+'"><input inputmode="decimal" data-i="'+i+'" data-k="h" value="'+esc(r.h)+'"><input inputmode="numeric" data-i="'+i+'" data-k="q" value="'+esc(r.q)+'"><select data-i="'+i+'" data-k="m">'+o([['motor','موتور'],['manual','يدوي']],r.m)+'</select></div>').join('')
+   +'<div id="b-err" class="er">'+esc(err||'')+'</div><button class="s" id="b-row">＋ فتحة</button> <button id="b-add">إضافة الكل للعرض</button> <button class="s" id="b-cancel">إلغاء</button>';
+  bulkDlg.querySelector('#b-slat').onchange=e=>bulk.slat=e.target.value;bulkDlg.querySelector('#b-col').onchange=e=>bulk.col=e.target.value;bulkDlg.querySelector('#b-tube').onchange=e=>bulk.tube=e.target.value;
+  bulkDlg.querySelectorAll('[data-i]').forEach(el=>{const h=()=>{bulk.rows[+el.dataset.i][el.dataset.k]=el.value};el.oninput=h;el.onchange=h});
+  bulkDlg.querySelector('#b-row').onclick=()=>{const last=bulk.rows[bulk.rows.length-1];bulk.rows.push({w:'',h:'',q:'1',m:last.m});renderBulk()};
+  bulkDlg.querySelector('#b-cancel').onclick=()=>bulkDlg.close();
+  bulkDlg.querySelector('#b-add').onclick=()=>{
+    const out=[];const rows=bulk.rows.filter(r=>String(r.w).trim()||String(r.h).trim());
+    if(!rows.length)return renderBulk('اكتب مقاس فتحة واحدة على الأقل.');
+    for(let i=0;i<rows.length;i++){const r=rows[i],w={no:String(Q.wins.length+out.length+1),q:r.q||'1',w:r.w,h:r.h,slat:bulk.slat,col:bulk.col,m:r.m,mc:1,tube:bulk.tube,bm:''};
+      if(!unlocked){const rate=num(S.colors.find(c=>c.n===w.col)?.p?.[w.slat]?.[1]);if(!(rate>0))return renderBulk('أسعار البيع مش جاهزة. اطلب من المالك استيراد جدول الأسعار الأول.')}
+      const c=calcWin(w);if(c.err)return renderBulk('فتحة '+(i+1)+': '+c.err);
+      if(!unlocked&&w.m==='motor'&&!(c.mSale>0))return renderBulk('فتحة '+(i+1)+': سعر الموتور مش جاهز. اطلب من المالك استيراد جدول الأسعار.');
+      out.push({in:w,c})}
+    Q.wins.push(...out);bulkDlg.close();draw();toast('اتضافت '+out.length+' فتحة. راجعها واحفظ العرض.')};
+};
+const extras=()=>{
+  if(V||Wn)return;const main=document.querySelector('main');if(!main)return;
+  if(Q){
+    const m=meta(Q.id),anchor=main.querySelector('.quote-form');
+    const card=document.createElement('section');card.className='card workflow-tools';
+    card.innerHTML='<h3>فورم المقاسات والصور</h3><button id="open-bulk">📐 فورم إدخال المقاسات</button><label>صور المقاسات أو الموقع</label><input id="photo-in" type="file" accept="image/*" multiple><div id="photo-list" style="display:flex;flex-wrap:wrap;gap:8px"></div><p class="m">الصور بتتحفظ على الموبايل ده مع العرض (حد أقصى ٦ لكل عرض) وبتدخل في النسخة الاحتياطية الكاملة. التطبيق مش بيقرا المقاسات من الصورة، دي للمرجع بس.</p>';
+    main.insertBefore(card,anchor);
+    const drawPhotos=()=>{const box=card.querySelector('#photo-list');box.innerHTML='';(m.photos||[]).forEach((p,i)=>{const w=document.createElement('div');w.style.cssText='position:relative';w.innerHTML='<img src="'+p+'" style="width:84px;height:84px;object-fit:cover;border-radius:8px;border:1px solid #cfdee3"><button class="s" style="position:absolute;top:2px;left:2px;width:26px;height:26px;min-width:0;min-height:0;padding:0;margin:0;border-radius:50%;font-size:12px;line-height:1">🗑</button>';w.querySelector('img').onclick=()=>{photoDlg.innerHTML='<img src="'+p+'" style="width:100%;border-radius:8px"><button id="ph-close">إغلاق</button>';photoDlg.showModal();photoDlg.querySelector('#ph-close').onclick=()=>photoDlg.close()};w.querySelector('button').onclick=()=>{if(!confirm('حذف الصورة؟'))return;m.photos.splice(i,1);persist();drawPhotos()};box.append(w)})};
+    drawPhotos();
+    card.querySelector('#photo-in').onchange=async e=>{const files=[...e.target.files];e.target.value='';m.photos=m.photos||[];for(const f of files){if(m.photos.length>=6){toast('الحد الأقصى ٦ صور لكل عرض.',1);break}try{const d=await shrink(f);m.photos.push(d);try{localStorage.setItem(FK,JSON.stringify(extra))}catch(_){m.photos.pop();toast('مساحة التخزين على الموبايل خلصت. احذف صور قديمة أو خد نسخة احتياطية.',1);break}}catch(_){toast('تعذر قراءة الصورة.',1)}}drawPhotos()};
+    card.querySelector('#open-bulk').onclick=()=>{bulk={slat:S.slats[0]?.id,col:S.colors[0]?.n,tube:6,rows:[{w:'',h:'',q:'1',m:'motor'}]};renderBulk();bulkDlg.showModal()};
+    if(unlocked&&!Q.isNew){
+      const t=totals(Q).grand,pays=m.payments||[],pd=paidOf(Q.id);
+      const pc=document.createElement('section');pc.className='card workflow-tools';
+      pc.innerHTML='<h3>الدفعات والمتبقي</h3>'+(pays.length?pays.map((p,i)=>'<div style="display:flex;justify-content:space-between;align-items:center;gap:6px;border-bottom:1px solid #e3eef0;padding:4px 0"><span>'+esc(p.d)+' · '+esc(p.note||'دفعة')+'</span><span><b>'+mny(num(p.amt))+'</b> <button class="s" data-del="'+i+'" style="margin:0;width:30px;height:30px;min-width:0;min-height:0;padding:0;border-radius:50%;font-size:13px;line-height:1">🗑</button></span></div>').join(''):'<p class="m">مفيش دفعات متسجلة.</p>')+'<div class="row"><span>إجمالي العرض</span><b>'+mny(t)+'</b></div><div class="row"><span>المدفوع</span><b>'+mny(pd)+'</b></div><div class="row"><span>المتبقي</span><b>'+mny(t-pd)+'</b></div><label>المبلغ</label><input id="pay-amt" inputmode="decimal"><label>التاريخ</label><input id="pay-date" type="date" value="'+today()+'"><label>البيان (اختياري)</label><input id="pay-note" placeholder="دفعة تعاقد، توريد، تركيب..."><button id="pay-add">تسجيل دفعة</button>'+(cname(Q)?'<button class="s" id="stmt-open">📄 كشف حساب العميل</button>':'')+'<p class="m">الدفعات بتظهر في وضع المالك بس. لو غيرت إجمالي العرض بعد تسجيل دفعات، المتبقي بيتحسب على الإجمالي الجديد.</p>';
+      main.insertBefore(pc,anchor);
+      pc.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(!confirm('حذف الدفعة؟'))return;m.payments.splice(+b.dataset.del,1);persist();draw()});
+      pc.querySelector('#pay-add').onclick=()=>{const a=num(pc.querySelector('#pay-amt').value);if(!(a>0))return toast('اكتب مبلغ صحيح.',1);const d=pc.querySelector('#pay-date').value||today();m.payments=m.payments||[];m.payments.push({d,amt:a,note:pc.querySelector('#pay-note').value.trim()});persist();draw();toast('✔ اتسجلت الدفعة')};
+      const so=pc.querySelector('#stmt-open');if(so)so.onclick=()=>{ST=cname(Q);stSel=null;draw()};
+    }
+  }else if(tab==='q'&&unlocked){
+    const names=[...new Set(S.quotes.map(cname).filter(Boolean))];
+    if(names.length){const c=document.createElement('section');c.className='card workflow-tools';c.innerHTML='<h3>كشف حساب عميل</h3><select id="stmt-cust">'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'</select><button id="stmt-go">فتح كشف الحساب</button>';main.insertBefore(c,main.querySelector('.section-head')||null);c.querySelector('#stmt-go').onclick=()=>{ST=c.querySelector('#stmt-cust').value;stSel=null;draw()}}
+  }
+};
+const drawBase=draw;draw=()=>{if(ST&&!unlocked){ST=null;stSel=null}if(ST){stView();return}drawBase();extras()};
 addEventListener('pageshow',()=>{unlocked=false;draw()});addEventListener('pagehide',()=>{unlocked=false;draw()});document.addEventListener('visibilitychange',()=>{if(document.hidden){unlocked=false;if(tab==='r'||tab==='s'||tab==='b'){originalTab('q')}else draw()}});draw();
 })();
