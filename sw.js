@@ -1,5 +1,5 @@
 // Smart Shutter mobile repair. Only this app's cache is managed.
-const V = 'shutter-pwa-v8-1-import-20261124';
+const V = 'shutter-pwa-v8-2-remember-20261124';
 const FILES = ['./', './index.html', './manifest.webmanifest', './html2canvas.min.js',
   './icon-192.png', './icon-512.png', './icon-maskable-512.png', './mobile.js', './mobile.css'];
 self.addEventListener('install', event => {
