@@ -184,6 +184,12 @@ const extras=()=>{
     }
   }else if(tab==='q'&&unlocked){
     const names=[...new Set(S.quotes.map(cname).filter(Boolean))];
+    {const ic=document.createElement('section');ic.className='card workflow-tools';ic.innerHTML='<h3>استيراد عرض سعر</h3><p class="m">اختار ملف عرض سعر جهزهولك (smart-shutter-quote). بيتضاف كعرض جديد من غير ما يمس عروضك الحالية.</p><input id="import-quote" type="file" accept=".json">';main.insertBefore(ic,main.querySelector('.section-head')||null);ic.querySelector('#import-quote').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;try{const x=JSON.parse(await f.text()),q=x.quote,fin=n=>typeof n==='number'&&isFinite(n);
+      if(x.format!=='smart-shutter-quote-v1'||!q||typeof q.cust!=='string'||!Array.isArray(q.wins)||!q.wins.length||!q.wins.every(w=>w&&w.in&&w.c&&fin(w.c.sale)&&fin(w.c.slatSale)&&fin(w.c.mSale)&&fin(w.c.area)&&fin(w.c.q)&&fin(w.c.mot)&&fin(w.c.cost)&&fin(w.c.box)))throw Error();
+      const miss=q.wins.find(w=>!S.slats.some(s=>s.id==w.in.slat));if(miss)return toast('نوع الريشة '+miss.in.slat+' مش موجود في إعداداتك.',1);
+      const g=totals(q).grand;if(!fin(g))throw Error();
+      if(!confirm('إضافة عرض '+q.no+' للعميل '+q.cust+' بإجمالي '+f0(g)+'؟ عروضك الحالية مش هتتغير.'))return;
+      const col=S.colors[0]?.n;q.wins.forEach(w=>{w.in.col=col});q.id=Date.now();delete q.isNew;S.quotes.unshift(q);save();draw();toast('✔ اتضاف العرض '+q.no)}catch(_){toast('الملف مش عرض سعر صالح.',1)}}}
     if(names.length){const c=document.createElement('section');c.className='card workflow-tools';c.innerHTML='<h3>كشف حساب عميل</h3><select id="stmt-cust">'+names.map(n=>'<option value="'+esc(n)+'">'+esc(n)+'</option>').join('')+'</select><button id="stmt-go">فتح كشف الحساب</button>';main.insertBefore(c,main.querySelector('.section-head')||null);c.querySelector('#stmt-go').onclick=()=>{ST=c.querySelector('#stmt-cust').value;stSel=null;draw()}}
   }
 };
